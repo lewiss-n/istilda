@@ -1,0 +1,94 @@
+@import "tailwindcss";
+
+@theme {
+  --color-g9: #0f3d2e;
+  --color-g8: #134a37;
+  --color-g7: #1b5e45;
+  --color-mint: #e6f0ea;
+  --color-lime: #c6f432;
+  --color-lime-dark: #a9d417;
+  --color-ink: #1a1a1a;
+  --color-muted: #5f6661;
+  --color-alt: #f5f7f4;
+  --color-line: #dce3de;
+  --color-danger: #b42318;
+
+  --font-display: "Archivo", "Arial Black", Arial, sans-serif;
+  --font-sans: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --radius-tile: 22px;
+
+  --animate-marquee: marquee 40s linear infinite;
+  @keyframes marquee {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+  --animate-rise: rise 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(14px); }
+    to { opacity: 1; transform: none; }
+  }
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-white font-sans text-ink antialiased;
+  }
+  :focus-visible {
+    outline: 3px solid var(--color-g7);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+  .bg-g9 :focus-visible,
+  .bg-g7 :focus-visible {
+    outline-color: var(--color-lime);
+  }
+  button {
+    cursor: pointer;
+  }
+}
+
+@utility btn {
+  @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-[10px] px-5 text-[15px] font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-60;
+}
+@utility btn-primary {
+  @apply btn bg-g9 text-white hover:bg-g7;
+}
+@utility btn-lime {
+  @apply btn bg-lime text-g9 hover:bg-lime-dark;
+}
+@utility btn-outline {
+  @apply btn border-[1.5px] border-g9 bg-white text-g9 hover:bg-mint;
+}
+@utility btn-ghost-light {
+  @apply btn border-[1.5px] border-white/40 text-white hover:border-lime hover:text-lime;
+}
+@utility field {
+  @apply block w-full rounded-[10px] border-[1.5px] border-line bg-white px-3.5 py-2.5 text-[15px] text-ink placeholder:text-muted/70 focus:border-g7 focus:outline-none focus:ring-3 focus:ring-mint;
+}
+@utility label {
+  @apply mb-1.5 block text-sm font-semibold text-ink;
+}
+@utility badge {
+  @apply inline-flex items-center rounded-md px-2 py-1 text-[11px] font-bold tracking-wide uppercase;
+}
+@utility kicker {
+  @apply text-xs font-bold tracking-[0.2em] uppercase;
+}
+@utility container-x {
+  @apply mx-auto w-full max-w-[1240px] px-4 sm:px-6 lg:px-8;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
