@@ -21,9 +21,29 @@ declare global {
 
 const onVercel = Boolean(process.env.VERCEL);
 
-/** DATABASE_URL, or POSTGRES_URL as set by some Vercel database integrations. */
+/**
+ * The database connection string. Checks, in order:
+ *  - DATABASE_URL (Docker, Neon on Vercel) and POSTGRES_URL (older Vercel Postgres names)
+ *  - the same names with a custom prefix, e.g. STORAGE_DATABASE_URL, which Vercel creates when a
+ *    "Custom Prefix" is typed while connecting a database
+ *  - direct (unpooled) variants, as a last resort
+ */
 export function databaseUrl() {
-  return process.env.DATABASE_URL || process.env.POSTGRES_URL || "";
+  const env = process.env;
+  if (env.DATABASE_URL) return env.DATABASE_URL;
+  if (env.POSTGRES_URL) return env.POSTGRES_URL;
+  const prefixed = Object.keys(env)
+    .filter((k) => /^[A-Z0-9_]+_(DATABASE_URL|POSTGRES_URL)$/.test(k) && env[k])
+    .sort();
+  if (prefixed.length) return env[prefixed[0]]!;
+  return env.DATABASE_URL_UNPOOLED || env.POSTGRES_URL_NON_POOLING || "";
+}
+
+/** Names (never values) of database-looking variables, to explain a missing connection. */
+function databaseVariableNames() {
+  return Object.keys(process.env)
+    .filter((k) => /DATABASE|POSTGRES|^PG|NEON/.test(k))
+    .sort();
 }
 
 /** Connection poolers (PgBouncer, Neon's "-pooler" hosts, Supabase's pooler) reject some session settings. */
@@ -40,7 +60,12 @@ function behindPooler(url: string) {
 function createPool() {
   const connectionString = databaseUrl();
   if (!connectionString) {
-    throw new Error("DATABASE_URL is not set. Point it at your PostgreSQL database, e.g. postgres://user:pass@host:5432/istilda");
+    const found = databaseVariableNames();
+    const seen = found.length ? ` Database-related variables this deployment can see: ${found.join(", ")}.` : " This deployment can't see any database-related variables.";
+    const where = onVercel
+      ? ` On Vercel: open Storage, connect your Neon database to this project with the "${process.env.VERCEL_ENV ?? "current"}" environment ticked, then redeploy (existing deployments don't pick up new variables).`
+      : " Point it at your PostgreSQL database, e.g. postgres://user:pass@host:5432/istilda";
+    throw new Error(`DATABASE_URL is not set.${seen}${where}`);
   }
   const pooled = behindPooler(connectionString);
   const pool = new pg.Pool({

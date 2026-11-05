@@ -24,6 +24,7 @@ const SAMPLES: Sample[] = [
   { name: "Everyday Canvas Tote", category: "tote-bags", price: 1500, was: 1900, option: ["Colour", "Beige, Black"], description: "Sample product for the demo.\nRoomy canvas tote with an inner pocket." },
   { name: "Mini Smartphone Projector", category: "electronics", price: 7400, featured: true, description: "Sample product for the demo.\nPocket projector for movie nights." },
   { name: "Wireless Earbuds", category: "electronics", price: 3200, description: "Sample product for the demo.\nCompact earbuds with a charging case." },
+  { name: "Portable Electric Kettle", category: "electric-gadgets", price: 2600, description: "Sample product for the demo.\nFoldable 0.6L kettle for home and travel." },
   { name: "Velvet Matte Lipstick", category: "cosmetics", price: 950, option: ["Shade", "Ruby, Nude, Berry"], description: "Sample product for the demo.\nLong-wear matte finish." },
   { name: "Oud Eau de Parfum 100ml", category: "perfumes", price: 4200, was: 5200, featured: true, description: "Sample product for the demo.\nWarm oud with vanilla and amber." },
   { name: "Wide Brim Fedora", category: "headwear", price: 2450, description: "Sample product for the demo.\nClassic fedora with a ribbon band." },

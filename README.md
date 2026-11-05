@@ -3,7 +3,7 @@
 A Next.js store for Istilda Importers with a customer shop and a password-protected admin area.
 
 **Customers can**
-- browse 11 categories (wigs/bundles/frontals, handbags, tote bags, gadgets, cosmetics, perfumes, hats & fascinators, shoes, sandals, sweaters & tops, kitchen gadgets), search and sort
+- browse 12 categories (wigs/bundles/frontals, handbags, tote bags, electronic gadgets, electric gadgets, cosmetics, perfumes, elegant hats & fascinators, shoes, sandals, sweaters & tops, kitchen gadgets), search and sort
 - pick sizes, colours or lengths where a product has options
 - send an **order request** with their name, phone, delivery location and notes, either:
   - **on the website**, or
@@ -133,7 +133,7 @@ Vercel is a quick way to put a working demo online and share a link before you s
 
 ### What demo mode does (`DEMO_MODE=true`)
 
-- Fills an empty store with 14 sample products and 2 sample orders, once, so there's something to click through. They show branded category tiles instead of photos; add a product with real photos to show off uploads. Delete the samples whenever you like and they won't come back.
+- Fills an empty store with 15 sample products and 2 sample orders, once, so there's something to click through. They show branded category tiles instead of photos; add a product with real photos to show off uploads. Delete the samples whenever you like and they won't come back.
 - Shows a notice at the top of the shop: *“Demo store: products and prices are samples. Orders you send here are for testing only.”*
 - Asks search engines not to index the site, so the demo never competes with your real store.
 - Locks the admin password (it's set only by `ADMIN_PASSWORD`), so someone you share the login with can't lock you out.

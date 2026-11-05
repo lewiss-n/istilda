@@ -15,7 +15,7 @@ export function generateMetadata(): Metadata {
       template: "%s | Istilda Importers",
     },
     description:
-      "Shop imported wigs, handbags, tote bags, gadgets, cosmetics, perfumes, hats, shoes, sandals, tops and kitchen gadgets. Order online or on WhatsApp.",
+      "Shop imported wigs, handbags, tote bags, electronic and electric gadgets, cosmetics, perfumes, elegant hats, shoes, sandals, tops and kitchen gadgets. Order online or on WhatsApp.",
     // Keep demo deployments out of search results so they never compete with the real store.
     robots: process.env.DEMO_MODE === "true" ? { index: false, follow: false } : undefined,
   };

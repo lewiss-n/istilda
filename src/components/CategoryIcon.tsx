@@ -29,6 +29,14 @@ const PATHS: Record<string, React.ReactNode> = {
       <path d="M9.5 6.5h5" />
     </>
   ),
+  "electric-gadgets": (
+    <>
+      <path d="M8 3v5M16 3v5" />
+      <path d="M5.5 8h13v3.5a6.5 6.5 0 0 1-13 0z" />
+      <path d="M12.8 11.5 10.8 14.5h2.4L11.2 17.5" />
+      <path d="M12 18v3" />
+    </>
+  ),
   cosmetics: (
     <>
       <path d="M9 21h6v-8H9z" />

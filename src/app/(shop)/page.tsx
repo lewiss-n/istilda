@@ -167,7 +167,7 @@ export default async function HomePage() {
               </Link>
             );
           })}
-          <Link href="/shop" className="group col-span-2 flex min-h-[170px] flex-col justify-between rounded-[22px] border-2 border-dashed border-g9/30 p-5 text-g9 hover:border-g9 hover:bg-alt">
+          <Link href="/shop" className="group flex min-h-[170px] flex-col justify-between rounded-[22px] border-2 border-dashed border-g9/30 p-5 text-g9 hover:border-g9 hover:bg-alt">
             <IconArrow className="h-10 w-10 transition-transform group-hover:translate-x-1" />
             <span className="font-display text-xl font-extrabold">Shop all</span>
           </Link>
