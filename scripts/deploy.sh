@@ -7,6 +7,8 @@
 # of building it here, so a 1 GB droplet doesn't run out of memory. If GitHub is still building,
 # it waits. Your database, photos and backups are kept.
 #
+# Automatic updates after every push: sudo sh scripts/install-auto-deploy.sh
+#
 # To build on the server anyway (needs about 2 GB of RAM or swap):
 #   BUILD_ON_SERVER=yes sh scripts/deploy.sh
 set -eu
@@ -62,6 +64,11 @@ else
     fi
     [ "$built" = "$COMMIT" ] && break
     tries=$((tries + 1))
+    # Automatic updates check once and try again on their next round instead of waiting here.
+    if [ "${WAIT_FOR_BUILD:-yes}" = "no" ]; then
+      echo "    GitHub hasn't finished building this version yet; will try again later."
+      exit 3
+    fi
     if [ "$tries" -ge 30 ]; then
       echo "GitHub hasn't finished an image for your latest commit after 15 minutes." >&2
       echo "Check the Actions tab of your repository on GitHub for a failed build, then run this again." >&2

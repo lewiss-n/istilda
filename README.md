@@ -180,6 +180,12 @@ cd ~/istilda && sh scripts/deploy.sh
 ```
 It pulls the latest code, downloads the image GitHub built for it (waiting if GitHub is still building), restarts the store, waits until it reports healthy, and cleans up old images. Your database, photos and backups are kept. Nothing is built on the droplet, so it stays responsive.
 
+**Automatic updates (recommended).** Make the droplet update itself after every push, once:
+```bash
+sudo sh scripts/install-auto-deploy.sh
+```
+Every 2 minutes the droplet checks GitHub. When there's a new commit and GitHub has finished building its image, it runs `deploy.sh` by itself, so a push goes live about 5–7 minutes later with nothing to do on the server. The droplet only reaches out to GitHub; GitHub gets no access to the droplet. Watch it with `journalctl -u istilda-auto-deploy -f`; turn it off with `sudo sh scripts/install-auto-deploy.sh --remove`. It needs the SSH deploy key from step 6 (so it can fetch without a password) and, for a private repository, the `docker login` from step 7, both done as the user who owns the project folder.
+
 **No GitHub Actions?** Build on your own computer and copy the image over instead (in Git Bash or WSL, not PowerShell, which corrupts the file):
 ```bash
 docker build -t ghcr.io/lewiss-n/istilda:latest .
@@ -326,6 +332,8 @@ vercel.json              Vercel settings (the daily clean-up schedule)
 scripts/import-sqlite.mjs  one-off import from the earlier SQLite version
 scripts/setup-env.sh     creates .env on a new server
 scripts/deploy.sh        updates a server to the latest code (downloads the image, never builds)
+scripts/install-auto-deploy.sh  makes the server update itself after every push
+scripts/auto-deploy.sh   what the automatic updates run every 2 minutes
 .github/workflows/       GitHub builds the Docker image on every push
 docker-compose.override.yml  local-only: builds the image from your code
 scripts/firewall.sh      locks the droplet down to SSH, 80 and 443 (Docker included)
