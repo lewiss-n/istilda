@@ -13,6 +13,14 @@
   --color-line: #dce3de;
   --color-danger: #b42318;
 
+  /* Istilda Pantry: warm spice tones that sit alongside the house greens */
+  --color-spice: #9a3f1d;
+  --color-spice-dark: #7c3116;
+  --color-saffron: #f2b441;
+  --color-cream: #f8f1e4;
+  --color-cream-dark: #efe3cc;
+  --color-cocoa: #3b2416;
+
   --font-display: "Archivo", "Arial Black", Arial, sans-serif;
   --font-sans: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
 

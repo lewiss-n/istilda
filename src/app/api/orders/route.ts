@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createOrder, type OrderChannel } from "@/lib/orders";
-import { getProductsByIds, optionList } from "@/lib/products";
+import { getProductsByIds, optionList, orderName } from "@/lib/products";
 import { getPublicSettings } from "@/lib/settings";
 import { clientIp, rateLimit } from "@/lib/auth";
 import { ksh, normalizePhone, waLink } from "@/lib/format";
@@ -60,7 +60,7 @@ export async function POST(req: Request) {
     const qty = Math.min(99, Math.max(1, Math.floor(Number(w.quantity) || 1)));
     const options = optionList(p);
     const option = options.includes(clean(w.option, 60)) ? clean(w.option, 60) : "";
-    items.push({ product_id: p.id, product_name: p.name, option_value: option ? `${p.option_label || "Option"}: ${option}` : "", unit_price: p.price, quantity: qty });
+    items.push({ product_id: p.id, product_name: orderName(p), option_value: option ? `${p.option_label || "Option"}: ${option}` : "", unit_price: p.price, quantity: qty });
   }
   if (!items.length) {
     return NextResponse.json({ error: "The items in your cart are no longer available.", errors: { items: "unavailable" } }, { status: 400 });

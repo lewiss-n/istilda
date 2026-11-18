@@ -4,7 +4,26 @@ import { useState } from "react";
 import { imageUrl } from "@/lib/img";
 import { CategoryIcon } from "./CategoryIcon";
 
-export function Gallery({ images, name, category, toneBg, toneFg }: { images: string[]; name: string; category: string; toneBg: string; toneFg: string }) {
+/**
+ * packshot: show the whole item on a cream background instead of filling the frame. Used for
+ * Istilda Pantry, whose photos are usually supplier pack shots on white (multiply blends the
+ * white into the cream so every brand's photo sits on the same shelf).
+ */
+export function Gallery({
+  images,
+  name,
+  category,
+  toneBg,
+  toneFg,
+  packshot = false,
+}: {
+  images: string[];
+  name: string;
+  category: string;
+  toneBg: string;
+  toneFg: string;
+  packshot?: boolean;
+}) {
   const [active, setActive] = useState(0);
   if (!images.length) {
     return (
@@ -24,15 +43,20 @@ export function Gallery({ images, name, category, toneBg, toneFg }: { images: st
               onClick={() => setActive(i)}
               aria-label={`Show image ${i + 1}`}
               aria-current={i === active}
-              className={`h-20 w-20 shrink-0 overflow-hidden rounded-[12px] border-2 bg-alt transition ${i === active ? "border-g9" : "border-transparent opacity-70 hover:opacity-100"}`}
+              className={`h-20 w-20 shrink-0 overflow-hidden rounded-[12px] border-2 transition ${packshot ? "bg-cream" : "bg-alt"} ${i === active ? "border-g9" : "border-transparent opacity-70 hover:opacity-100"}`}
             >
-              <img src={imageUrl(img, "sm")} alt="" className="h-full w-full object-cover" />
+              <img src={imageUrl(img, "sm")} alt="" className={packshot ? "h-full w-full object-contain p-1.5 mix-blend-multiply" : "h-full w-full object-cover"} />
             </button>
           ))}
         </div>
       )}
-      <div className="relative aspect-square flex-1 overflow-hidden rounded-[28px] bg-alt">
-        <img key={images[active]} src={imageUrl(images[active])} alt={name} className="h-full w-full animate-[rise_.35s_ease-out] object-cover" />
+      <div className={`relative aspect-square flex-1 overflow-hidden rounded-[28px] ${packshot ? "bg-cream" : "bg-alt"}`}>
+        <img
+          key={images[active]}
+          src={imageUrl(images[active])}
+          alt={name}
+          className={`h-full w-full animate-[rise_.35s_ease-out] ${packshot ? "object-contain p-[9%] mix-blend-multiply" : "object-cover"}`}
+        />
         {images.length > 1 && (
           <span className="absolute right-4 bottom-4 rounded-full bg-white/90 px-3 py-1 text-xs font-bold text-g9">
             {active + 1} / {images.length}

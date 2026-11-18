@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Logo } from "./Logo";
-import { CATEGORIES } from "@/lib/categories";
+import { DEPARTMENTS, categoriesIn } from "@/lib/categories";
 import type { PublicSettings } from "@/lib/settings";
 import { displayPhone, waLink } from "@/lib/format";
 
@@ -11,11 +11,11 @@ export function Footer({ settings }: { settings: PublicSettings }) {
       <svg className="pointer-events-none absolute -top-44 -right-44 h-80 w-80 text-g7" viewBox="0 0 200 200" aria-hidden="true">
         <rect width="200" height="200" rx="44" fill="currentColor" />
       </svg>
-      <div className="container-x relative grid gap-12 py-16 md:grid-cols-[1.3fr_1fr_1fr]">
+      <div className="container-x relative grid gap-12 py-16 md:grid-cols-[1.2fr_2fr_1fr]">
         <div>
           <Logo variant="dark" size="lg" />
           <p className="mt-5 max-w-sm text-[15px] leading-relaxed">
-            Imported finds for your hair, wardrobe, home and everyday tech. Send an order request online or on WhatsApp and we&apos;ll confirm the details with you.
+            Imported finds for your hair, wardrobe, beauty routine, home and pantry. Send an order request online or on WhatsApp and we&apos;ll confirm the details with you.
           </p>
           {settings.whatsapp_number && (
             <a href={waLink(settings.whatsapp_number, "Hello Istilda Importers!")} target="_blank" rel="noopener noreferrer" className="btn-lime mt-6">
@@ -25,15 +25,24 @@ export function Footer({ settings }: { settings: PublicSettings }) {
         </div>
         <div>
           <h2 className="kicker mb-4 text-lime">Shop</h2>
-          <ul className="grid grid-cols-1 gap-2 text-[15px]">
-            {CATEGORIES.map((c) => (
-              <li key={c.slug}>
-                <Link href={`/shop?category=${c.slug}`} className="hover:text-lime">
-                  {c.name}
+          <div className="grid grid-cols-2 gap-x-6 gap-y-7">
+            {DEPARTMENTS.map((d) => (
+              <div key={d.slug}>
+                <Link href={`/${d.slug}`} className={`font-display font-extrabold hover:underline ${d.theme === "pantry" ? "text-saffron" : "text-white"}`}>
+                  {d.name}
                 </Link>
-              </li>
+                <ul className="mt-2 grid gap-1.5 text-[15px]">
+                  {categoriesIn(d.slug).map((c) => (
+                    <li key={c.slug}>
+                      <Link href={`/${d.slug}?category=${c.slug}`} className="hover:text-lime">
+                        {c.short}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             ))}
-          </ul>
+          </div>
         </div>
         <div>
           <h2 className="kicker mb-4 text-lime">Contact</h2>

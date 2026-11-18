@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { listProducts, categoryCounts } from "@/lib/products";
 import { getPublicSettings } from "@/lib/settings";
-import { CATEGORIES, TONE_CLASSES } from "@/lib/categories";
+import { CATEGORIES, DEPARTMENTS, categoriesIn, type DepartmentSlug } from "@/lib/categories";
 import { imageUrl } from "@/lib/img";
 import { waLink } from "@/lib/format";
 import { ProductCard } from "@/components/ProductCard";
@@ -15,7 +15,16 @@ export default async function HomePage() {
   const featured = await listProducts({ featured: true, limit: 4 });
   const counts = await categoryCounts();
   const heroImages = [...featured, ...latest].filter((p) => p.images.length).slice(0, 3);
-  const [bigCat, ...restCats] = CATEGORIES;
+  const pantrySlugs = categoriesIn("pantry").map((c) => c.slug);
+  const pantryProducts = await listProducts({ categories: pantrySlugs, limit: 4 });
+  const deptCount = (d: DepartmentSlug) => categoriesIn(d).reduce((n, c) => n + (counts[c.slug] ?? 0), 0);
+  // Card colours for each department on the home page.
+  const DEPT_STYLE: Record<DepartmentSlug, { card: string; title: string; sub: string; icon: string; pill: string }> = {
+    style: { card: "bg-g9", title: "text-lime", sub: "text-mint", icon: "text-lime", pill: "bg-g7 text-white hover:bg-lime hover:text-g9" },
+    beauty: { card: "bg-lime", title: "text-g9", sub: "text-g9/75", icon: "text-g9", pill: "bg-white/70 text-g9 hover:bg-g9 hover:text-lime" },
+    "home-gadgets": { card: "bg-mint", title: "text-g9", sub: "text-g7", icon: "text-g7", pill: "bg-white text-g9 hover:bg-g9 hover:text-white" },
+    pantry: { card: "bg-spice", title: "text-cream", sub: "text-cream/80", icon: "text-saffron", pill: "bg-spice-dark text-cream hover:bg-saffron hover:text-cocoa" },
+  };
 
   return (
     <>
@@ -42,7 +51,7 @@ export default async function HomePage() {
                 to you.
               </h1>
               <p className="mt-6 max-w-[520px] text-[17px] leading-relaxed text-mint sm:text-lg">
-                Wigs, handbags, beauty, gadgets, shoes and more. Pick what you love, send an order request in a minute, and we&apos;ll confirm everything with you before you pay.
+                Style, beauty, home gadgets and now the Istilda Pantry. Pick what you love, send an order request in a minute, and we&apos;ll confirm everything with you before you pay.
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
                 <Link href="/shop" className="btn-lime h-[52px] px-7 text-base">
@@ -56,8 +65,8 @@ export default async function HomePage() {
               </div>
               <dl className="mt-10 hidden max-w-md grid-cols-3 gap-4 border-t border-g7 pt-6 sm:grid">
                 <div>
-                  <dt className="text-[13px] text-mint/80">Categories</dt>
-                  <dd className="font-display text-2xl font-extrabold text-lime">{CATEGORIES.length}</dd>
+                  <dt className="text-[13px] text-mint/80">Departments</dt>
+                  <dd className="font-display text-2xl font-extrabold text-lime">{DEPARTMENTS.length}</dd>
                 </div>
                 <div>
                   <dt className="text-[13px] text-mint/80">Order via</dt>
@@ -128,49 +137,49 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ---------- Categories ---------- */}
+      {/* ---------- Departments ---------- */}
       <section className="container-x mt-20">
         <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="kicker text-g7">Browse</p>
-            <h2 className="mt-2 font-display text-4xl font-extrabold tracking-tight text-g9 sm:text-5xl">Shop by category</h2>
+            <h2 className="mt-2 font-display text-4xl font-extrabold tracking-tight text-g9 sm:text-5xl">Shop by department</h2>
           </div>
           <Link href="/shop" className="inline-flex items-center gap-1.5 font-bold text-g7 hover:underline">
             See everything <IconArrow className="h-4 w-4" />
           </Link>
         </div>
-        <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">
-          {[bigCat, ...restCats].map((c, i) => {
-            const t = TONE_CLASSES[c.tone];
-            const big = i === 0;
-            const n = counts[c.slug] ?? 0;
+        <div className="grid gap-4 md:grid-cols-2">
+          {DEPARTMENTS.map((d) => {
+            const st = DEPT_STYLE[d.slug];
+            const cats = categoriesIn(d.slug);
+            const n = deptCount(d.slug);
             return (
-              <Link
-                key={c.slug}
-                href={`/shop?category=${c.slug}`}
-                className={`group relative flex flex-col justify-between overflow-hidden rounded-[22px] p-5 transition-transform hover:-translate-y-1 ${t.bg} ${
-                  big ? "col-span-2 row-span-2 min-h-[300px] sm:p-8 md:min-h-[380px]" : "min-h-[170px]"
-                }`}
-              >
-                <span className={`${t.fg} transition-transform group-hover:scale-110 group-hover:-rotate-6 ${big ? "" : ""}`}>
-                  <CategoryIcon slug={c.slug} className={big ? "h-24 w-24 sm:h-32 sm:w-32" : "h-11 w-11"} strokeWidth={big ? 1.1 : 1.5} />
-                </span>
-                <span>
-                  <span className={`block font-display font-extrabold leading-tight tracking-tight ${t.fg} ${big ? "text-3xl sm:text-4xl" : "text-lg sm:text-xl"}`}>
-                    {big ? c.name : c.short}
+              <div key={d.slug} className={`group relative flex min-h-[260px] flex-col justify-between overflow-hidden rounded-[26px] p-6 sm:p-8 ${st.card}`}>
+                <div className={`pointer-events-none absolute top-5 right-5 flex gap-2 opacity-90 sm:top-6 sm:right-6 ${st.icon}`} aria-hidden="true">
+                  {cats.slice(0, 3).map((c) => (
+                    <CategoryIcon key={c.slug} slug={c.slug} className="h-12 w-12 sm:h-16 sm:w-16" strokeWidth={1.2} />
+                  ))}
+                </div>
+                <Link href={`/${d.slug}`} className="relative mt-16 block after:absolute after:inset-0 after:content-[''] sm:mt-20">
+                  {d.theme === "pantry" && <span className="badge mb-3 bg-saffron text-cocoa">New</span>}
+                  <span className={`block font-display text-4xl leading-none font-extrabold tracking-tight sm:text-5xl ${st.title}`}>{d.name}</span>
+                  <span className={`mt-2 block font-medium ${st.sub}`}>
+                    {d.tagline}
+                    {n ? ` · ${n} item${n === 1 ? "" : "s"}` : ""}
                   </span>
-                  <span className={`mt-1 block text-sm font-medium ${t.sub}`}>{n ? `${n} item${n === 1 ? "" : "s"}` : big ? c.blurb : "New stock soon"}</span>
-                </span>
-                <span className={`absolute top-5 right-5 grid h-10 w-10 place-items-center rounded-full border-2 ${t.ring} ${t.fg} opacity-0 transition-opacity group-hover:opacity-100`}>
-                  <IconArrow className="h-4 w-4" />
-                </span>
-              </Link>
+                </Link>
+                <ul className="relative z-10 mt-5 flex flex-wrap gap-2">
+                  {cats.map((c) => (
+                    <li key={c.slug}>
+                      <Link href={`/${d.slug}?category=${c.slug}`} className={`inline-flex h-9 items-center rounded-full px-3.5 text-sm font-semibold transition-colors ${st.pill}`}>
+                        {c.short}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             );
           })}
-          <Link href="/shop" className="group flex min-h-[170px] flex-col justify-between rounded-[22px] border-2 border-dashed border-g9/30 p-5 text-g9 hover:border-g9 hover:bg-alt">
-            <IconArrow className="h-10 w-10 transition-transform group-hover:translate-x-1" />
-            <span className="font-display text-xl font-extrabold">Shop all</span>
-          </Link>
         </div>
       </section>
 
@@ -224,6 +233,93 @@ export default async function HomePage() {
         </section>
       )}
 
+      {/* ---------- Istilda Pantry ---------- */}
+      <section className="container-x mt-24" aria-labelledby="pantry-heading">
+        <div className="grid overflow-hidden rounded-[28px] bg-cream lg:grid-cols-[0.85fr_2fr]">
+          <div className="relative flex flex-col justify-between gap-8 overflow-hidden bg-spice p-7 text-cream sm:p-10">
+            <div className="pointer-events-none absolute -right-10 -bottom-10 flex gap-3" aria-hidden="true">
+              <span className="h-28 w-28 rounded-full bg-saffron" />
+              <span className="mt-10 h-20 w-20 rounded-full bg-spice-dark" />
+            </div>
+            <div className="relative">
+              <p className="kicker text-saffron">New department</p>
+              <h2 id="pantry-heading" className="mt-3 font-display text-4xl leading-[0.95] font-extrabold tracking-tight sm:text-5xl">
+                Istilda
+                <br />
+                Pantry
+              </h2>
+              <p className="mt-4 max-w-sm leading-relaxed text-cream/90">
+                Spices, nuts, dry fruits and granola from brands we trust. Imported and hand-picked, like everything else we stock.
+              </p>
+            </div>
+            <div className="relative">
+              <ul className="mb-5 flex flex-wrap gap-2">
+                {categoriesIn("pantry").map((c) => (
+                  <li key={c.slug}>
+                    <Link href={`/pantry?category=${c.slug}`} className="inline-flex h-9 items-center gap-2 rounded-full bg-spice-dark px-3.5 text-sm font-semibold hover:bg-saffron hover:text-cocoa">
+                      <CategoryIcon slug={c.slug} className="h-4 w-4" />
+                      {c.short}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+              <Link href="/pantry" className="btn h-[52px] bg-saffron px-7 text-base text-cocoa hover:bg-cream">
+                Visit the Pantry <IconArrow />
+              </Link>
+            </div>
+          </div>
+          <div className="flex flex-col gap-6 p-5 sm:p-8">
+            <div className="flex items-baseline justify-between gap-4">
+              <p className="kicker text-spice">On the shelves</p>
+              <Link href="/pantry" className="inline-flex items-center gap-1.5 text-sm font-bold text-spice hover:underline">
+                All pantry products <IconArrow className="h-4 w-4" />
+              </Link>
+            </div>
+            {pantryProducts.length > 0 ? (
+              <div className="grid grid-cols-2 gap-x-3 gap-y-4 xl:grid-cols-4">
+                {pantryProducts.map((p) => (
+                  <div key={p.id} className="rounded-[22px] bg-white p-2.5 pb-3">
+                    <ProductCard product={p} />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="grid h-full grid-cols-2 gap-3 md:grid-cols-4">
+                {categoriesIn("pantry").map((c, i) => (
+                  <Link
+                    key={c.slug}
+                    href={`/pantry?category=${c.slug}`}
+                    className={`flex min-h-[180px] flex-col justify-between rounded-[22px] p-5 transition-transform hover:-translate-y-1 ${
+                      ["bg-white text-spice", "bg-saffron text-cocoa", "bg-white text-spice", "bg-cream-dark text-cocoa"][i % 4]
+                    }`}
+                  >
+                    <CategoryIcon slug={c.slug} className="h-12 w-12" strokeWidth={1.4} />
+                    <span>
+                      <span className="block font-display text-xl font-extrabold">{c.name}</span>
+                      <span className="text-sm opacity-80">{c.blurb}</span>
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            )}
+            <ul className="mt-auto grid gap-3 border-t border-cream-dark pt-5 sm:grid-cols-3">
+              {[
+                { t: "Brands we trust", d: "Sealed, branded packs" },
+                { t: "Best-before shown", d: "For the stock we have now" },
+                { t: "Allergy info up front", d: "Flagged on the product page" },
+              ].map((x) => (
+                <li key={x.t} className="flex items-center gap-3">
+                  <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-saffron" aria-hidden="true" />
+                  <span className="text-sm text-cocoa">
+                    <b className="font-bold">{x.t}.</b> {x.d}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </section>
+
       {/* ---------- How it works ---------- */}
       <section className="container-x mt-24">
         <div className="rounded-[28px] bg-mint p-6 sm:p-10 lg:p-14">
@@ -259,7 +355,7 @@ export default async function HomePage() {
           {[
             { icon: <IconShield />, t: "Confirm before you pay", d: "Every order is checked with you first: price, stock and delivery." },
             { icon: <IconChat />, t: "Real people on WhatsApp", d: "Ask about sizes, colours or anything else before you order." },
-            { icon: <IconBox />, t: "Hand-picked imports", d: "We choose every item we stock, from hair to kitchen gadgets." },
+            { icon: <IconBox />, t: "Hand-picked imports", d: "We choose every item we stock, from hair and handbags to pantry staples." },
           ].map((x) => (
             <li key={x.t} className="flex gap-4 rounded-[22px] border-[1.5px] border-line p-6">
               <span className="grid h-12 w-12 shrink-0 place-items-center rounded-[14px] bg-g9 text-lime">{x.icon}</span>

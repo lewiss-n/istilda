@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { listProducts, categoryCounts } from "@/lib/products";
-import { CATEGORIES, CATEGORY_MAP, TONE_CLASSES } from "@/lib/categories";
+import { CATEGORY_MAP, DEPARTMENTS, DEPARTMENT_MAP, TONE_CLASSES, categoriesIn } from "@/lib/categories";
 import { ProductCard } from "@/components/ProductCard";
 import { CategoryIcon } from "@/components/CategoryIcon";
 import { IconSearch } from "@/components/Icons";
@@ -54,7 +54,15 @@ export default async function ShopPage({ searchParams }: { searchParams: SP }) {
             </div>
           )}
         </div>
-        <p className={`kicker ${tone.sub}`}>{cat ? "Category" : "The whole store"}</p>
+        <p className={`kicker relative ${tone.sub}`}>
+          {cat ? (
+            <Link href={`/${cat.department}`} className="hover:underline">
+              {DEPARTMENT_MAP.get(cat.department)?.name}
+            </Link>
+          ) : (
+            "The whole store"
+          )}
+        </p>
         <h1 className={`relative mt-2 max-w-2xl font-display text-4xl leading-[0.95] font-extrabold tracking-tight sm:text-6xl ${tone.fg}`}>
           {q ? <>Results for &ldquo;{q}&rdquo;</> : cat ? cat.name : "Shop everything"}
         </h1>
@@ -77,7 +85,13 @@ export default async function ShopPage({ searchParams }: { searchParams: SP }) {
               All
             </Link>
           </li>
-          {CATEGORIES.map((c) => (
+          {DEPARTMENTS.flatMap((d) => [
+            <li key={d.slug} className="flex items-center pr-1 pl-3">
+              <Link href={`/${d.slug}`} className={`text-[12px] font-bold tracking-wide whitespace-nowrap uppercase hover:underline ${d.theme === "pantry" ? "text-spice" : "text-g7"}`}>
+                {d.theme === "pantry" ? "Pantry" : d.name}
+              </Link>
+            </li>,
+            ...categoriesIn(d.slug).map((c) => (
             <li key={c.slug}>
               <Link
                 href={href({ category: c.slug })}
@@ -91,7 +105,8 @@ export default async function ShopPage({ searchParams }: { searchParams: SP }) {
                 {counts[c.slug] ? <span className={category === c.slug ? "text-mint" : "text-muted"}>{counts[c.slug]}</span> : null}
               </Link>
             </li>
-          ))}
+            )),
+          ])}
         </ul>
       </nav>
 

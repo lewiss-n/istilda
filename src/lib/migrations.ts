@@ -94,4 +94,17 @@ CREATE TABLE rate_limits (
 );
 `,
   },
+  {
+    id: "002_product_details",
+    sql: `
+-- Details shown on product pages: who makes it and, for Istilda Pantry, food facts.
+ALTER TABLE products
+  ADD COLUMN brand       TEXT NOT NULL DEFAULT '',
+  ADD COLUMN origin      TEXT NOT NULL DEFAULT '',
+  ADD COLUMN pack_size   TEXT NOT NULL DEFAULT '',
+  ADD COLUMN best_before DATE,
+  ADD COLUMN allergens   TEXT NOT NULL DEFAULT '';
+CREATE INDEX products_brand_idx ON products (lower(brand)) WHERE brand <> '';
+`,
+  },
 ];

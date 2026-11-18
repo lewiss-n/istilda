@@ -4,12 +4,10 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Logo, CartMark } from "./Logo";
-import { CATEGORIES } from "@/lib/categories";
+import { DEPARTMENTS, categoriesIn } from "@/lib/categories";
 import { CategoryIcon } from "./CategoryIcon";
 import { IconClose, IconMenu, IconSearch } from "./Icons";
 import { useCart } from "./cart/CartProvider";
-
-const QUICK = ["wigs", "handbags", "cosmetics", "perfumes", "electronics", "shoes"];
 
 export function Header({ announcement }: { announcement: string }) {
   const { count, ready, setDrawerOpen } = useCart();
@@ -54,12 +52,44 @@ export function Header({ announcement }: { announcement: string }) {
             <Link href="/shop" className={`rounded-full px-3.5 py-2 text-[15px] font-semibold hover:bg-mint ${pathname === "/shop" ? "text-g7" : ""}`}>
               Shop all
             </Link>
-            {QUICK.map((slug) => {
-              const c = CATEGORIES.find((x) => x.slug === slug)!;
+            {DEPARTMENTS.map((d) => {
+              const pantry = d.theme === "pantry";
+              const current = pathname === `/${d.slug}`;
               return (
-                <Link key={slug} href={`/shop?category=${slug}`} className="rounded-full px-3 py-2 text-[15px] font-medium text-ink/80 hover:bg-mint hover:text-g9">
-                  {c.short}
-                </Link>
+                <div key={d.slug} className="group relative">
+                  <Link
+                    href={`/${d.slug}`}
+                    aria-current={current ? "page" : undefined}
+                    className={`flex items-center gap-1.5 rounded-full px-3 py-2 text-[15px] font-medium whitespace-nowrap ${
+                      pantry ? "text-spice hover:bg-cream" : "text-ink/80 hover:bg-mint hover:text-g9"
+                    } ${current ? "font-semibold" : ""}`}
+                  >
+                    {pantry && <span className="h-2 w-2 rounded-full bg-saffron" aria-hidden="true" />}
+                    {pantry ? "Pantry" : d.name}
+                  </Link>
+                  {/* Category list on hover or keyboard focus */}
+                  <div className="invisible absolute top-full left-0 z-50 pt-2 opacity-0 transition-all group-focus-within:visible group-focus-within:opacity-100 group-hover:visible group-hover:opacity-100">
+                    <div className={`w-64 rounded-[18px] p-2 shadow-xl ring-1 ${pantry ? "bg-cream ring-cream-dark" : "bg-white ring-line"}`}>
+                      <p className={`px-3 pt-2 pb-1 text-[12px] font-bold tracking-wide uppercase ${pantry ? "text-spice" : "text-g7"}`}>{d.name}</p>
+                      <ul>
+                        {categoriesIn(d.slug).map((c) => (
+                          <li key={c.slug}>
+                            <Link
+                              href={`/${d.slug}?category=${c.slug}`}
+                              className={`flex items-center gap-3 rounded-xl px-3 py-2 text-[15px] font-medium ${pantry ? "text-cocoa hover:bg-cream-dark" : "hover:bg-mint"}`}
+                            >
+                              <CategoryIcon slug={c.slug} className={`h-5 w-5 ${pantry ? "text-spice" : "text-g7"}`} />
+                              {c.short}
+                            </Link>
+                          </li>
+                        ))}
+                      </ul>
+                      <Link href={`/${d.slug}`} className={`mt-1 block rounded-xl px-3 py-2 text-sm font-bold ${pantry ? "text-spice hover:bg-cream-dark" : "text-g7 hover:bg-mint"}`}>
+                        All of {d.name} →
+                      </Link>
+                    </div>
+                  </div>
+                </div>
               );
             })}
           </nav>
@@ -95,7 +125,7 @@ export function Header({ announcement }: { announcement: string }) {
         </div>
         {searchOpen && (
           <form onSubmit={submit} className="container-x pb-3 md:hidden" role="search">
-            <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search wigs, bags, perfume…" className="field rounded-full" aria-label="Search products" />
+            <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search wigs, perfume, cashews…" className="field rounded-full" aria-label="Search products" />
           </form>
         )}
       </header>
@@ -118,18 +148,34 @@ export function Header({ announcement }: { announcement: string }) {
           <Link href="/shop" className="mx-5 mb-3 rounded-[14px] bg-lime px-4 py-3.5 font-display text-lg font-extrabold text-g9">
             Shop everything →
           </Link>
-          <ul className="px-3 pb-8">
-            {CATEGORIES.map((c) => (
-              <li key={c.slug}>
-                <Link href={`/shop?category=${c.slug}`} className="flex items-center gap-3 rounded-xl px-3 py-3 font-medium hover:bg-g7">
-                  <span className="grid h-9 w-9 place-items-center rounded-[10px] bg-g7 text-lime">
-                    <CategoryIcon slug={c.slug} className="h-5 w-5" />
-                  </span>
-                  {c.name}
-                </Link>
-              </li>
-            ))}
-          </ul>
+          <div className="space-y-4 px-3 pb-8">
+            {DEPARTMENTS.map((d) => {
+              const pantry = d.theme === "pantry";
+              return (
+                <section key={d.slug} className={pantry ? "rounded-[18px] bg-spice p-1.5" : ""}>
+                  <Link href={`/${d.slug}`} className={`flex items-center justify-between rounded-xl px-3 py-2 ${pantry ? "hover:bg-spice-dark" : "hover:bg-g7"}`}>
+                    <span>
+                      <span className={`block font-display text-lg font-extrabold ${pantry ? "text-cream" : "text-lime"}`}>{d.name}</span>
+                      <span className={`block text-[13px] ${pantry ? "text-cream/75" : "text-mint/80"}`}>{d.tagline}</span>
+                    </span>
+                    <span aria-hidden="true" className={pantry ? "text-saffron" : "text-lime"}>→</span>
+                  </Link>
+                  <ul>
+                    {categoriesIn(d.slug).map((c) => (
+                      <li key={c.slug}>
+                        <Link href={`/${d.slug}?category=${c.slug}`} className={`flex items-center gap-3 rounded-xl px-3 py-2.5 font-medium ${pantry ? "hover:bg-spice-dark" : "hover:bg-g7"}`}>
+                          <span className={`grid h-9 w-9 place-items-center rounded-[10px] ${pantry ? "bg-spice-dark text-saffron" : "bg-g7 text-lime"}`}>
+                            <CategoryIcon slug={c.slug} className="h-5 w-5" />
+                          </span>
+                          {c.name}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              );
+            })}
+          </div>
         </nav>
       </div>
     </>

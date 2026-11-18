@@ -15,7 +15,7 @@ import {
   requireAdmin,
 } from "@/lib/auth";
 import { CATEGORY_MAP } from "@/lib/categories";
-import { createProduct, deleteProduct, getProduct, setInStock, getProductsByIds, isImageInUse, updateProduct, type ProductInput } from "@/lib/products";
+import { createProduct, deleteProduct, getProduct, setInStock, getProductsByIds, isImageInUse, orderName, updateProduct, type ProductInput } from "@/lib/products";
 import { deleteImageFiles, FILENAME_RE } from "@/lib/images";
 import { ORDER_STATUSES, createOrder, deleteOrder, getOrder, updateOrder, type OrderStatus } from "@/lib/orders";
 import { PUBLIC_KEYS, setSettings } from "@/lib/settings";
@@ -77,6 +77,12 @@ function readProduct(fd: FormData): { input?: ProductInput; errors: Record<strin
     .map((s) => s.trim())
     .filter(Boolean)
     .join(", ");
+  const brand = str(fd, "brand", 80);
+  const origin = str(fd, "origin", 80);
+  const pack_size = str(fd, "pack_size", 40);
+  const allergens = str(fd, "allergens", 300);
+  const bestRaw = str(fd, "best_before", 10);
+  const best_before = /^\d{4}-\d{2}-\d{2}$/.test(bestRaw) && !Number.isNaN(Date.parse(bestRaw)) ? bestRaw : null;
   let images: string[] = [];
   try {
     images = (JSON.parse(String(fd.get("images") ?? "[]")) as string[]).filter((f) => FILENAME_RE.test(f)).slice(0, 12);
@@ -86,6 +92,7 @@ function readProduct(fd: FormData): { input?: ProductInput; errors: Record<strin
   if (!CATEGORY_MAP.has(category)) errors.category = "Choose a category.";
   if (!Number.isFinite(price) || price <= 0) errors.price = "Enter a price in KSh, e.g. 4500.";
   if (compare !== null && (!Number.isFinite(compare) || compare <= 0)) errors.compare_price = "Enter a number, or leave it empty.";
+  if (bestRaw && !best_before) errors.best_before = "Pick a date, or leave it empty.";
   if (Object.keys(errors).length) return { errors };
   return {
     errors,
@@ -99,6 +106,11 @@ function readProduct(fd: FormData): { input?: ProductInput; errors: Record<strin
       option_values,
       in_stock: fd.get("in_stock") === "on",
       featured: fd.get("featured") === "on",
+      brand,
+      origin,
+      pack_size,
+      best_before,
+      allergens,
       images,
     },
   };
@@ -185,7 +197,7 @@ export async function createManualOrderAction(_prev: FormState, fd: FormData): P
       const p = l.productId ? products.get(Number(l.productId)) : undefined;
       const qty = Math.min(999, Math.max(1, Math.floor(Number(l.qty) || 1)));
       const price = Math.round(Number(l.price));
-      const label = String(l.name ?? "").trim().slice(0, 140) || p?.name || "";
+      const label = String(l.name ?? "").trim().slice(0, 140) || (p ? orderName(p) : "");
       if (!label || !Number.isFinite(price) || price < 0) return null;
       return {
         product_id: p?.id ?? null,

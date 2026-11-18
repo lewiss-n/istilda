@@ -2,7 +2,7 @@
 
 import { useActionState, useRef, useState } from "react";
 import type { Product } from "@/lib/products";
-import { CATEGORIES } from "@/lib/categories";
+import { DEPARTMENTS, categoriesIn, isPantry } from "@/lib/categories";
 import { imageUrl } from "@/lib/img";
 import { saveProductAction } from "../../actions";
 import { useSubmit } from "@/components/useSubmit";
@@ -10,12 +10,14 @@ import { shrinkImage } from "@/components/shrinkImage";
 
 type Upload = { id: string; filename?: string; preview?: string; error?: string; name: string };
 
-export function ProductForm({ product }: { product?: Product }) {
+export function ProductForm({ product, brands = [], defaultCategory }: { product?: Product; brands?: string[]; defaultCategory?: string }) {
   const [state, action, pending] = useActionState(saveProductAction, undefined);
   const [images, setImages] = useState<string[]>(product?.images ?? []);
   const [uploads, setUploads] = useState<Upload[]>([]);
   const [dragOver, setDragOver] = useState(false);
   const [optionValues, setOptionValues] = useState(product?.option_values ?? "");
+  const [category, setCategory] = useState(product?.category ?? defaultCategory ?? "");
+  const pantry = isPantry(category);
   const fileRef = useRef<HTMLInputElement>(null);
   const onSubmit = useSubmit(action);
   const fe = state?.fieldErrors ?? {};
@@ -70,10 +72,14 @@ export function ProductForm({ product }: { product?: Product }) {
             </div>
             <div>
               <label htmlFor="category" className="label">Category</label>
-              <select id="category" name="category" defaultValue={product?.category ?? ""} required className="field">
+              <select id="category" name="category" value={category} onChange={(e) => setCategory(e.target.value)} required className="field">
                 <option value="" disabled>Choose a category</option>
-                {CATEGORIES.map((c) => (
-                  <option key={c.slug} value={c.slug}>{c.name}</option>
+                {DEPARTMENTS.map((d) => (
+                  <optgroup key={d.slug} label={d.name}>
+                    {categoriesIn(d.slug).map((c) => (
+                      <option key={c.slug} value={c.slug}>{c.name}</option>
+                    ))}
+                  </optgroup>
                 ))}
               </select>
               {fe.category && <p className="mt-1 text-sm text-danger">{fe.category}</p>}
@@ -90,6 +96,63 @@ export function ProductForm({ product }: { product?: Product }) {
               />
             </div>
           </div>
+        </section>
+
+        <section className={`rounded-[20px] p-5 ring-1 sm:p-6 ${pantry ? "bg-cream ring-cream-dark" : "bg-white ring-line/70"}`}>
+          <h2 className="font-display text-lg font-extrabold text-g9">
+            {pantry ? "Pantry details" : "Product details"} <span className="text-sm font-normal text-muted">(optional)</span>
+          </h2>
+          <p className="mt-1 text-[13px] text-muted">
+            {pantry
+              ? "Shown on the product page so customers know exactly what they're buying. Copy them from the pack."
+              : "Shown on the product page when filled in."}
+          </p>
+          <div className="mt-4 grid gap-4 sm:grid-cols-3">
+            <div>
+              <label htmlFor="brand" className="label">Brand</label>
+              <input id="brand" name="brand" defaultValue={product?.brand} list="brand-list" className="field" placeholder={pantry ? "e.g. Tropical Heat" : "e.g. Ariana"} autoComplete="off" />
+              <datalist id="brand-list">
+                {brands.map((b) => (
+                  <option key={b} value={b} />
+                ))}
+              </datalist>
+            </div>
+            <div>
+              <label htmlFor="origin" className="label">Made in</label>
+              <input id="origin" name="origin" defaultValue={product?.origin} className="field" placeholder={pantry ? "e.g. Turkey" : "e.g. China"} />
+            </div>
+            <div>
+              <label htmlFor="pack_size" className="label">{pantry ? "Pack size" : "Size / quantity"}</label>
+              <input id="pack_size" name="pack_size" defaultValue={product?.pack_size} className="field" placeholder={pantry ? "e.g. 500 g" : "e.g. 100 ml"} />
+            </div>
+          </div>
+          {pantry ? (
+            <div className="mt-4 grid gap-4 sm:grid-cols-[1fr_2fr]">
+              <div>
+                <label htmlFor="best_before" className="label">Best before</label>
+                <input id="best_before" name="best_before" type="date" defaultValue={product?.best_before ?? ""} className="field" />
+                {fe.best_before && <p className="mt-1 text-sm text-danger">{fe.best_before}</p>}
+                <p className="mt-1 text-[12px] text-muted">For the stock you have now. Update it when new stock arrives.</p>
+              </div>
+              <div>
+                <label htmlFor="allergens" className="label">Allergy information</label>
+                <input
+                  id="allergens"
+                  name="allergens"
+                  defaultValue={product?.allergens}
+                  className="field"
+                  placeholder="e.g. Contains almonds. May contain traces of peanuts and gluten."
+                />
+                <p className="mt-1 text-[12px] text-muted">Shown prominently. Copy it exactly from the pack.</p>
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Keep food details if a product is moved out of the Pantry by mistake and back. */}
+              <input type="hidden" name="best_before" value={product?.best_before ?? ""} />
+              <input type="hidden" name="allergens" value={product?.allergens ?? ""} />
+            </>
+          )}
         </section>
 
         <section className="rounded-[20px] bg-white p-5 ring-1 ring-line/70 sm:p-6">

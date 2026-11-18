@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getProduct } from "@/lib/products";
+import { brandCounts, getProduct } from "@/lib/products";
 import { PageHead } from "../../ui";
 import { ProductForm } from "../ProductForm";
 import { deleteProductAction } from "../../../actions";
@@ -12,6 +12,7 @@ export default async function EditProduct({ params }: { params: Promise<{ id: st
   const { id } = await params;
   const product = await getProduct(Number(id));
   if (!product) notFound();
+  const brands = (await brandCounts()).map((b) => b.brand);
   return (
     <>
       <Link href="/admin/products" className="mb-3 inline-block text-sm font-semibold text-g7 hover:underline">← All products</Link>
@@ -30,7 +31,7 @@ export default async function EditProduct({ params }: { params: Promise<{ id: st
           </div>
         }
       />
-      <ProductForm product={product} />
+      <ProductForm product={product} brands={brands} />
     </>
   );
 }

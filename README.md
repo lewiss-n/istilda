@@ -3,7 +3,12 @@
 A Next.js store for Istilda Importers with a customer shop and a password-protected admin area.
 
 **Customers can**
-- browse 12 categories (wigs/bundles/frontals, handbags, tote bags, electronic gadgets, electric gadgets, cosmetics, perfumes, elegant hats & fascinators, shoes, sandals, sweaters & tops, kitchen gadgets), search and sort
+- browse four departments, each with its own page (`/style`, `/beauty`, `/home-gadgets`, `/pantry`):
+  - **Style:** wigs/bundles/frontals, handbags, tote bags, elegant hats & fascinators, shoes, sandals, sweaters & tops
+  - **Beauty:** cosmetics, perfumes
+  - **Home & Gadgets:** kitchen gadgets, electric gadgets, electronic gadgets
+  - **Istilda Pantry:** spices, nuts, dry fruits, granola. It has its own warm look, a brand filter, and shows pack shots whole on a cream background
+- search, sort, and filter by category or brand
 - pick sizes, colours or lengths where a product has options
 - send an **order request** with their name, phone, delivery location and notes, either:
   - **on the website**, or
@@ -13,6 +18,7 @@ Both kinds get an order reference (e.g. `IST-7KQ2MX`) and appear in the admin st
 
 **In the admin (`/admin`) you can**
 - add, edit and delete products: name, category, description, price, "was" price for sales, options, stock status, "Top pick", and up to 12 photos each (drag and drop; photos are resized automatically)
+- product details shown on the product page when filled in: brand, where it's made, and pack size; for Istilda Pantry products also the best-before date and allergy information (shown in a highlighted box). The product list warns about pantry items past their best-before date that are still marked in stock
 - see every order, filter by status or channel, call or WhatsApp the customer in one tap, move orders through *New → Contacted → Confirmed → Delivered* (or *Cancelled*) and keep private notes
 - **log a WhatsApp order** that a customer sent you directly (not through the site), so every order is on record
 - view **analytics**: visitors, page views, order requests, requested value, conversion, a daily traffic and orders chart, a shopping funnel, website vs WhatsApp orders, most viewed and most requested products, traffic sources, top pages and devices
@@ -252,7 +258,7 @@ Vercel is a quick way to put a working demo online and share a link before you s
 
 ### What demo mode does (`DEMO_MODE=true`)
 
-- Fills an empty store with 15 sample products and 2 sample orders, once, so there's something to click through. They show branded category tiles instead of photos; add a product with real photos to show off uploads. Delete the samples whenever you like and they won't come back.
+- Fills an empty store with 23 sample products (8 of them in Istilda Pantry, from made-up brands) and 2 sample orders, once, so there's something to click through. They show branded category tiles instead of photos; add a product with real photos to show off uploads. Delete the samples whenever you like and they won't come back.
 - Shows a notice at the top of the shop: *“Demo store: products and prices are samples. Orders you send here are for testing only.”*
 - Asks search engines not to index the site, so the demo never competes with your real store.
 - Locks the admin password (it's set only by `ADMIN_PASSWORD`), so someone you share the login with can't lock you out.
@@ -339,7 +345,7 @@ docker-compose.override.yml  local-only: builds the image from your code
 scripts/firewall.sh      locks the droplet down to SSH, 80 and 443 (Docker included)
 scripts/create-dev-user.sh  creates a non-root user for running the store, then turns off root logins
 deploy/nginx-proxy-manager/  ready-made Nginx Proxy Manager setup
-src/lib/categories.ts    the category list: edit this to rename or add categories
+src/lib/categories.ts    the departments and categories: edit this to rename or add them
 src/app/globals.css      brand colours and fonts
 ```
 

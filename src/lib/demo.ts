@@ -15,6 +15,12 @@ type Sample = {
   option?: [string, string];
   featured?: boolean;
   description: string;
+  brand?: string;
+  origin?: string;
+  pack?: string;
+  /** Best before, in months from now. */
+  months?: number;
+  allergens?: string;
 };
 
 const SAMPLES: Sample[] = [
@@ -35,27 +41,59 @@ const SAMPLES: Sample[] = [
   { name: "Non-stick Ceramic Pot Set", category: "kitchen", price: 5600, was: 6900, description: "Sample product for the demo.\nThree-piece ceramic-coated pot set." },
 ];
 
+/** Istilda Pantry samples. The brands are made up for the demo. */
+const PANTRY_SAMPLES: Sample[] = [
+  { name: "Ground Cinnamon", category: "spices", price: 450, brand: "Spice Route", origin: "Sri Lanka", pack: "100 g", months: 18, featured: true, description: "Sample product for the demo.\nWarm, sweet Ceylon cinnamon for baking, tea and chai." },
+  { name: "Pilau Masala", category: "spices", price: 380, brand: "Spice Route", origin: "Kenya", pack: "100 g", months: 14, description: "Sample product for the demo.\nWhole-spice blend for pilau." },
+  { name: "Roasted Almonds", category: "nuts", price: 1450, was: 1650, brand: "Orchard Gold", origin: "USA", pack: "500 g", months: 9, featured: true, allergens: "Contains almonds. Packed in a facility that also handles peanuts and other tree nuts.", description: "Sample product for the demo.\nLightly roasted, unsalted almonds." },
+  { name: "Salted Cashews", category: "nuts", price: 1250, brand: "Orchard Gold", origin: "Vietnam", pack: "400 g", months: 8, allergens: "Contains cashews. May contain traces of peanuts.", description: "Sample product for the demo.\nWhole cashews, roasted with sea salt." },
+  { name: "Medjool Dates", category: "dry-fruits", price: 1800, brand: "Desert Bloom", origin: "Saudi Arabia", pack: "1 kg", months: 10, featured: true, description: "Sample product for the demo.\nSoft, caramel-sweet Medjool dates." },
+  { name: "Dried Apricots", category: "dry-fruits", price: 950, brand: "Desert Bloom", origin: "Turkey", pack: "500 g", months: 12, allergens: "Contains sulphites.", description: "Sample product for the demo.\nPlump, naturally sweet Turkish apricots." },
+  { name: "Honey Almond Granola", category: "granola", price: 890, brand: "Morning Crunch", origin: "South Africa", pack: "750 g", months: 7, allergens: "Contains oats (gluten) and almonds. May contain traces of peanuts and sesame.", description: "Sample product for the demo.\nOven-baked oat clusters with honey and almonds." },
+  { name: "Berry & Seed Granola", category: "granola", price: 950, brand: "Morning Crunch", origin: "South Africa", pack: "500 g", months: 7, allergens: "Contains oats (gluten). May contain traces of nuts.", description: "Sample product for the demo.\nCrunchy granola with dried berries and pumpkin seeds." },
+];
+
+async function insertSamples(c: Queryable, samples: Sample[], ids: Record<string, number>) {
+  for (const [i, s] of samples.entries()) {
+    const r = await c.query<{ id: number }>(
+      `INSERT INTO products (name, slug, category, description, price, compare_price, option_label, option_values, featured,
+                             brand, origin, pack_size, best_before, allergens, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
+               CASE WHEN $13::int IS NULL THEN NULL ELSE (current_date + $13::int * interval '1 month')::date END,
+               $14, now() - $15 * interval '1 hour', now())
+       ON CONFLICT (slug) DO NOTHING RETURNING id`,
+      [s.name, slugify(s.name), s.category, s.description, s.price, s.was ?? null, s.option?.[0] ?? "", s.option?.[1] ?? "", Boolean(s.featured),
+        s.brand ?? "", s.origin ?? "", s.pack ?? "", s.months ?? null, s.allergens ?? "", i],
+    );
+    if (r.rows[0]) ids[s.name] = r.rows[0].id;
+  }
+}
+
 /**
  * Fills an empty demo store with sample products and two sample orders, once.
  * Runs inside the migration transaction. Never runs unless DEMO_MODE=true, and never again
  * after the first time (even if you delete the samples).
  */
 export async function seedDemoContent(c: Queryable) {
-  const { rows } = await c.query<{ seeded: boolean; empty: boolean }>(
+  const { rows } = await c.query<{ seeded: boolean; pantry: boolean; empty: boolean }>(
     `SELECT EXISTS (SELECT 1 FROM settings WHERE key = 'demo_seeded') AS seeded,
+            EXISTS (SELECT 1 FROM settings WHERE key = 'demo_pantry_seeded') AS pantry,
             NOT EXISTS (SELECT 1 FROM products) AND NOT EXISTS (SELECT 1 FROM orders) AS empty`,
   );
-  if (rows[0].seeded || !rows[0].empty) return;
-
   const ids: Record<string, number> = {};
-  for (const [i, s] of SAMPLES.entries()) {
-    const r = await c.query<{ id: number }>(
-      `INSERT INTO products (name, slug, category, description, price, compare_price, option_label, option_values, featured, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, now() - $10 * interval '1 hour', now()) RETURNING id`,
-      [s.name, slugify(s.name), s.category, s.description, s.price, s.was ?? null, s.option?.[0] ?? "", s.option?.[1] ?? "", Boolean(s.featured), i],
-    );
-    ids[s.name] = r.rows[0].id;
+
+  // Demo stores set up before Istilda Pantry existed get the pantry samples once.
+  if (rows[0].seeded) {
+    if (!rows[0].pantry) {
+      await insertSamples(c, PANTRY_SAMPLES, ids);
+      await c.query("INSERT INTO settings (key, value) VALUES ('demo_pantry_seeded', '1') ON CONFLICT (key) DO NOTHING");
+      console.log(`[demo] added ${PANTRY_SAMPLES.length} sample Istilda Pantry products`);
+    }
+    return;
   }
+  if (!rows[0].empty) return;
+
+  await insertSamples(c, [...SAMPLES, ...PANTRY_SAMPLES], ids);
 
   const orders = [
     {
@@ -100,6 +138,6 @@ export async function seedDemoContent(c: Queryable) {
     }
   }
 
-  await c.query("INSERT INTO settings (key, value) VALUES ('demo_seeded', '1') ON CONFLICT (key) DO NOTHING");
-  console.log(`[demo] added ${SAMPLES.length} sample products and ${orders.length} sample orders`);
+  await c.query("INSERT INTO settings (key, value) VALUES ('demo_seeded', '1'), ('demo_pantry_seeded', '1') ON CONFLICT (key) DO NOTHING");
+  console.log(`[demo] added ${SAMPLES.length + PANTRY_SAMPLES.length} sample products and ${orders.length} sample orders`);
 }

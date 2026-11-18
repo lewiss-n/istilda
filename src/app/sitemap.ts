@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next";
-import { CATEGORIES } from "@/lib/categories";
+import { CATEGORIES, DEPARTMENTS } from "@/lib/categories";
 import { listProducts } from "@/lib/products";
 import { isDemo } from "@/lib/demo";
 import { siteUrl } from "@/lib/site";
@@ -15,7 +15,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   return [
     { url: url("/"), changeFrequency: "daily", priority: 1 },
     { url: url("/shop"), changeFrequency: "daily", priority: 0.9 },
-    ...CATEGORIES.map((c) => ({ url: url(`/shop?category=${c.slug}`), changeFrequency: "weekly" as const, priority: 0.7 })),
+    ...DEPARTMENTS.map((d) => ({ url: url(`/${d.slug}`), changeFrequency: "daily" as const, priority: 0.9 })),
+    ...CATEGORIES.map((c) => ({ url: url(`/${c.department}?category=${c.slug}`), changeFrequency: "weekly" as const, priority: 0.7 })),
     ...products.map((p) => ({ url: url(`/product/${p.slug}`), lastModified: new Date(p.updated_at), changeFrequency: "weekly" as const, priority: 0.8 })),
     { url: url("/how-to-order"), changeFrequency: "monthly", priority: 0.4 },
   ];

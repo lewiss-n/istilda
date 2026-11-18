@@ -14,6 +14,12 @@ export type Product = {
   option_values: string;
   in_stock: boolean;
   featured: boolean;
+  brand: string;
+  origin: string;
+  pack_size: string;
+  /** YYYY-MM-DD, or null. */
+  best_before: string | null;
+  allergens: string;
   created_at: number;
   updated_at: number;
   images: string[];
@@ -21,7 +27,8 @@ export type Product = {
 
 const SELECT = `
 SELECT p.id, p.name, p.slug, p.category, p.description, p.price, p.compare_price, p.option_label, p.option_values,
-       p.in_stock, p.featured, ${ms("p.created_at", "created_at")}, ${ms("p.updated_at", "updated_at")},
+       p.in_stock, p.featured, p.brand, p.origin, p.pack_size, to_char(p.best_before, 'YYYY-MM-DD') AS best_before, p.allergens,
+       ${ms("p.created_at", "created_at")}, ${ms("p.updated_at", "updated_at")},
        COALESCE((SELECT array_agg(i.filename ORDER BY i.sort, i.id) FROM product_images i WHERE i.product_id = p.id), '{}') AS images
 FROM products p`;
 
@@ -32,8 +39,17 @@ export function optionList(p: Pick<Product, "option_values">) {
     .filter(Boolean);
 }
 
+/** Name as it appears in orders and WhatsApp messages: includes the pack size, e.g. "Almonds, 500 g". */
+export function orderName(p: Pick<Product, "name" | "pack_size">) {
+  const size = p.pack_size.trim();
+  return size && !p.name.toLowerCase().includes(size.toLowerCase()) ? `${p.name}, ${size}` : p.name;
+}
+
 export type ProductQuery = {
   category?: string;
+  /** Any of these categories, e.g. all of a department. */
+  categories?: string[];
+  brand?: string;
   q?: string;
   sort?: string;
   featured?: boolean;
@@ -47,9 +63,17 @@ export async function listProducts(q: ProductQuery = {}): Promise<Product[]> {
     args.push(q.category);
     where.push(`p.category = $${args.length}`);
   }
+  if (q.categories) {
+    args.push(q.categories);
+    where.push(`p.category = ANY($${args.length}::text[])`);
+  }
+  if (q.brand) {
+    args.push(q.brand.toLowerCase());
+    where.push(`lower(p.brand) = $${args.length}`);
+  }
   if (q.q) {
     args.push(`%${q.q.replace(/[\\%_]/g, (c) => "\\" + c)}%`);
-    where.push(`(p.name ILIKE $${args.length} OR p.description ILIKE $${args.length})`);
+    where.push(`(p.name ILIKE $${args.length} OR p.description ILIKE $${args.length} OR p.brand ILIKE $${args.length})`);
   }
   if (q.featured) where.push("p.featured");
   const order =
@@ -87,6 +111,16 @@ export async function categoryCounts(): Promise<Record<string, number>> {
   return Object.fromEntries(rows.map((r) => [r.category, r.n]));
 }
 
+/** Brands in use, with product counts, optionally within some categories. */
+export async function brandCounts(categories?: string[]): Promise<{ brand: string; n: number }[]> {
+  return query<{ brand: string; n: number }>(
+    `SELECT min(brand) AS brand, COUNT(*) AS n FROM products
+     WHERE brand <> '' ${categories ? "AND category = ANY($1::text[])" : ""}
+     GROUP BY lower(brand) ORDER BY lower(min(brand))`,
+    categories ? [categories] : [],
+  );
+}
+
 export type ProductInput = {
   name: string;
   category: string;
@@ -97,6 +131,11 @@ export type ProductInput = {
   option_values: string;
   in_stock: boolean;
   featured: boolean;
+  brand: string;
+  origin: string;
+  pack_size: string;
+  best_before: string | null;
+  allergens: string;
   images: string[];
 };
 
@@ -126,9 +165,11 @@ export async function createProduct(input: ProductInput): Promise<number> {
   return tx(async (c) => {
     const slug = await uniqueSlug(c, input.name);
     const { rows } = await c.query<{ id: number }>(
-      `INSERT INTO products (name, slug, category, description, price, compare_price, option_label, option_values, in_stock, featured)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
-      [input.name, slug, input.category, input.description, input.price, input.compare_price, input.option_label, input.option_values, input.in_stock, input.featured],
+      `INSERT INTO products (name, slug, category, description, price, compare_price, option_label, option_values, in_stock, featured,
+                             brand, origin, pack_size, best_before, allergens)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING id`,
+      [input.name, slug, input.category, input.description, input.price, input.compare_price, input.option_label, input.option_values, input.in_stock, input.featured,
+        input.brand, input.origin, input.pack_size, input.best_before, input.allergens],
     );
     await setImages(c, rows[0].id, input.images);
     return rows[0].id;
@@ -142,8 +183,10 @@ export async function updateProduct(id: number, input: ProductInput) {
     const slug = rows[0].name === input.name ? rows[0].slug : await uniqueSlug(c, input.name, id);
     await c.query(
       `UPDATE products SET name=$1, slug=$2, category=$3, description=$4, price=$5, compare_price=$6, option_label=$7,
-         option_values=$8, in_stock=$9, featured=$10, updated_at=now() WHERE id=$11`,
-      [input.name, slug, input.category, input.description, input.price, input.compare_price, input.option_label, input.option_values, input.in_stock, input.featured, id],
+         option_values=$8, in_stock=$9, featured=$10, brand=$11, origin=$12, pack_size=$13, best_before=$14, allergens=$15,
+         updated_at=now() WHERE id=$16`,
+      [input.name, slug, input.category, input.description, input.price, input.compare_price, input.option_label, input.option_values, input.in_stock, input.featured,
+        input.brand, input.origin, input.pack_size, input.best_before, input.allergens, id],
     );
     await setImages(c, id, input.images);
   });

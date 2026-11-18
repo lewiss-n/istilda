@@ -88,6 +88,38 @@ const PATHS: Record<string, React.ReactNode> = {
       <path d="M9 3.5c0 1 1 1 1 2M14 3.5c0 1 1 1 1 2" />
     </>
   ),
+  // Istilda Pantry
+  spices: (
+    <>
+      <path d="M3.5 11h17c0 4.4-3.8 8-8.5 8s-8.5-3.6-8.5-8z" />
+      <path d="M9 19.2 8.6 21h6.8l-.4-1.8" />
+      <path d="M12.5 11 18.4 4.6a1.5 1.5 0 0 1 2.2 2L15.2 11" />
+      <path d="M7 14.5c1.2.7 2.8 1 4.5 1" />
+    </>
+  ),
+  nuts: (
+    <>
+      <path d="M12 3c3.6 3 5.6 6.4 5.6 10a5.6 5.6 0 0 1-11.2 0C6.4 9.4 8.4 6 12 3z" />
+      <path d="M10 9.5c.7 2.7.7 5.6 0 8.3M14 9.5c-.7 2.7-.7 5.6 0 8.3" />
+    </>
+  ),
+  "dry-fruits": (
+    <>
+      <path d="M12 8c4 0 7 2.8 7 6.4S16 21 12 21s-7-3-7-6.6S8 8 12 8z" />
+      <path d="M12 8c-1.3 3.4-1.3 9.4 0 13" />
+      <path d="M12 8c0-2 .9-3.4 2.6-4.3" />
+      <path d="M14.6 3.7c2.4-.3 4.1.8 4.9 2.6-2.4.7-4.2.1-4.9-2.6z" />
+    </>
+  ),
+  granola: (
+    <>
+      <path d="M3.5 12h17c0 4.7-3.8 8.5-8.5 8.5S3.5 16.7 3.5 12z" />
+      <circle cx="7.8" cy="9.4" r="1.6" />
+      <circle cx="12" cy="7.8" r="1.9" />
+      <circle cx="16.2" cy="9.4" r="1.6" />
+      <path d="M9.6 4.6l.4.4M14.4 4.2l-.3.5" />
+    </>
+  ),
 };
 
 export function CategoryIcon({ slug, className = "h-6 w-6", strokeWidth = 1.6 }: { slug: string; className?: string; strokeWidth?: number }) {

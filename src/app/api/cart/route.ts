@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getProductsByIds } from "@/lib/products";
+import { getProductsByIds, orderName } from "@/lib/products";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +12,7 @@ export async function GET(req: Request) {
     .slice(0, 50);
   const products = (await getProductsByIds(ids)).map((p) => ({
     id: p.id,
-    name: p.name,
+    name: orderName(p),
     slug: p.slug,
     price: p.price,
     inStock: Boolean(p.in_stock),
