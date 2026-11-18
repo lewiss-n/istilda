@@ -3,6 +3,11 @@ import crypto from "node:crypto";
 import sharp from "sharp";
 import { deleteFiles, saveFile } from "./storage";
 
+// Small-server friendly: one image-processing thread and a small cache, so a photo upload
+// can't push a 1 GB server into swap. Uploads are occasional, so the speed difference is tiny.
+sharp.concurrency(1);
+sharp.cache({ memory: 32, files: 0, items: 50 });
+
 export const MAX_UPLOAD_BYTES = 12 * 1024 * 1024;
 const ACCEPTED = ["image/jpeg", "image/png", "image/webp", "image/avif", "image/gif", "image/heic", "image/heif"];
 export const FILENAME_RE = /^[a-f0-9]{24}(-sm)?\.webp$/;

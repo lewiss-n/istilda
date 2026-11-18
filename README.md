@@ -58,7 +58,7 @@ Your data survives restarts, rebuilds and updates:
 - the database is in the Docker volume `istilda_istilda-postgres`
 - product photos are in the Docker volume `istilda_istilda-data`
 
-**Updating after code changes:** `docker compose up -d --build`, or `sh scripts/deploy.sh` on a server (it also pulls the latest code from GitHub). New database changes are applied automatically on start.
+**Updating after code changes:** `docker compose up -d --build` on your own computer (`docker-compose.override.yml` builds from your local code), or `sh scripts/deploy.sh` on a server (it also pulls the latest code from GitHub). New database changes are applied automatically on start.
 
 **Logs:** `docker compose logs -f web`
 
@@ -106,12 +106,13 @@ visitors ──https──▶ Nginx Proxy Manager (ports 80, 443)
                                                           istilda-backup (daily dumps)
 ```
 
-**1. Create the droplet.** Ubuntu 24.04 LTS, at least **2 GB RAM** (building the site needs about 1.5 GB). Frankfurt (FRA1) or London (LON1) are the closest regions to Kenya. Add your SSH key. Turning on DigitalOcean's droplet backups is worth it.
+**1. Create the droplet.** Ubuntu 24.04 LTS. **1 GB RAM is enough**: the droplet never builds the site. GitHub builds it each time you push (`.github/workflows/docker-image.yml`) and the droplet just downloads the result. Running, the whole store uses about 300–400 MB. Frankfurt (FRA1) or London (LON1) are the closest regions to Kenya. Add your SSH key. Turning on DigitalOcean's droplet backups is worth it.
 
-On a 1 GB droplet, add swap first or the build will be stopped for lack of memory:
+Add 2 GB of swap as a safety net so a busy moment slows the droplet down instead of freezing it:
 ```bash
-fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
-echo '/swapfile none swap sw 0 0' >> /etc/fstab
+sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+echo 'vm.swappiness=10' | sudo tee /etc/sysctl.d/99-swap.conf && sudo sysctl -p /etc/sysctl.d/99-swap.conf
 ```
 
 **2. Point your domain at it.** At your domain registrar, add `A` records for `@` and `www` with the droplet's IP address.
@@ -147,12 +148,17 @@ sh scripts/setup-env.sh
 ```
 If the repository is private, sign in with your GitHub username and a personal access token as the password. The setup script asks for your domain and WhatsApp number, creates `.env` with strong random passwords, and shows your admin password once. Save it in your password manager.
 
-**7. Start the store:**
+**7. Start the store.** First check that GitHub has built the image: on your repository's **Actions** tab, the latest "Build Docker image" run should have a green tick (it takes about 3–5 minutes after a push).
+
+If your repository is **private**, the image is private too, so log the droplet in to GitHub's image registry once. Create a token at GitHub › Settings › Developer settings › Personal access tokens › **Tokens (classic)** with only the **`read:packages`** permission, then:
 ```bash
-docker compose up -d --build
-curl http://127.0.0.1:3000/api/health
+docker login ghcr.io -u lewiss-n
 ```
-The first build takes a few minutes. The health check should answer `{"ok":true,"database":"up"}`.
+and paste the token as the password. Then start the store:
+```bash
+sh scripts/deploy.sh
+```
+It downloads the image, starts everything and waits until the store reports healthy (`curl http://127.0.0.1:3000/api/health` should answer `{"ok":true,"database":"up"}`).
 
 **8. Add the proxy host in Nginx Proxy Manager.** Go to **Hosts › Proxy Hosts › Add Proxy Host**:
 
@@ -172,7 +178,15 @@ On the **SSL** tab choose **Request a new SSL Certificate**, turn on **Force SSL
 ```bash
 cd ~/istilda && sh scripts/deploy.sh
 ```
-It pulls the latest code, rebuilds, waits until the store reports healthy, and cleans up old images. Your database, photos and backups are kept.
+It pulls the latest code, downloads the image GitHub built for it (waiting if GitHub is still building), restarts the store, waits until it reports healthy, and cleans up old images. Your database, photos and backups are kept. Nothing is built on the droplet, so it stays responsive.
+
+**No GitHub Actions?** Build on your own computer and copy the image over instead (in Git Bash or WSL, not PowerShell, which corrupts the file):
+```bash
+docker build -t ghcr.io/lewiss-n/istilda:latest .
+docker save ghcr.io/lewiss-n/istilda:latest | gzip > istilda.tar.gz
+scp istilda.tar.gz dev@YOUR_DROPLET_IP:~/
+```
+then on the droplet: `gunzip -c ~/istilda.tar.gz | docker load && cd ~/istilda && docker compose up -d --no-build`.
 
 **Keeping backups off the server.** Daily database dumps collect in `~/istilda/backups` on the droplet. If the droplet is lost, so are they, so copy them elsewhere regularly, for example from your own computer:
 ```bash
@@ -185,7 +199,9 @@ scp -r root@YOUR_DROPLET_IP:~/istilda/backups ./istilda-backups
 | --- | --- |
 | `network proxy declared as external, but could not be found` | Run `docker network create proxy` once, then start again. |
 | 502 Bad Gateway from Nginx Proxy Manager | Nginx Proxy Manager isn't on the `proxy` network (step 5), or the store isn't running: check `docker compose ps` and `docker compose logs web`. |
-| The build stops with "Killed" or exit code 137 | The droplet ran out of memory. Add swap (step 1) and build again. |
+| The droplet freezes during an update | It's building instead of downloading. Make sure `.env` has `COMPOSE_FILE=docker-compose.yml` (`deploy.sh` adds it) and use `sh scripts/deploy.sh`, not `docker compose up --build`. |
+| `deploy.sh` says access denied | The image is private: run `docker login ghcr.io -u lewiss-n` with a `read:packages` token (step 7). |
+| `deploy.sh` keeps waiting for GitHub | The build on GitHub failed or hasn't started. Open the **Actions** tab on GitHub to see why. |
 | Admin login says "Too many wrong attempts" for everyone | You put Cloudflare's proxy in front of the site. Set `CLIENT_IP_HEADER=cf-connecting-ip` in `.env` and restart. |
 
 **Good practice**
@@ -278,6 +294,8 @@ Production without Docker: `npm run build`, then `npm start`.
 | `COOKIE_SECURE` | No | `true` once you're on HTTPS. Left empty, it's detected automatically. |
 | `SITE_URL` | In production | Your store's address, e.g. `https://istilda.co.ke`. Used for links shared on WhatsApp and social media, and for `/sitemap.xml`. |
 | `PROXY_NETWORK` | No | Docker network shared with Nginx Proxy Manager (default `proxy`). |
+| `COMPOSE_FILE` | Server only | `docker-compose.yml`: use the image GitHub built and never build on the server. `setup-env.sh` and `deploy.sh` add it. Leave it out on your own computer. |
+| `WEB_IMAGE` | No | Image to download (default `ghcr.io/lewiss-n/istilda:latest`). Pin a version with `ghcr.io/lewiss-n/istilda:<commit sha>`. |
 | `WEB_PORT` | No | Port the website uses on the server itself, for checks with `curl` (default 3000). Not reachable from the internet. |
 | `CLIENT_IP_HEADER` | No | Only with Cloudflare's proxy in front: `cf-connecting-ip`, so login limits apply per visitor. |
 | `BACKUP_KEEP_DAYS` | No | Days of daily backups to keep (default 14). |
@@ -307,8 +325,11 @@ src/lib/demo.ts          demo mode and its sample data
 vercel.json              Vercel settings (the daily clean-up schedule)
 scripts/import-sqlite.mjs  one-off import from the earlier SQLite version
 scripts/setup-env.sh     creates .env on a new server
-scripts/deploy.sh        updates a server to the latest code
+scripts/deploy.sh        updates a server to the latest code (downloads the image, never builds)
+.github/workflows/       GitHub builds the Docker image on every push
+docker-compose.override.yml  local-only: builds the image from your code
 scripts/firewall.sh      locks the droplet down to SSH, 80 and 443 (Docker included)
+scripts/create-dev-user.sh  creates a non-root user for running the store, then turns off root logins
 deploy/nginx-proxy-manager/  ready-made Nginx Proxy Manager setup
 src/lib/categories.ts    the category list: edit this to rename or add categories
 src/app/globals.css      brand colours and fonts

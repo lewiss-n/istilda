@@ -1,6 +1,12 @@
 # Istilda Importers: website + PostgreSQL + daily backups.
 # Visitors reach the website through Nginx Proxy Manager, which handles the domain and HTTPS.
 # See "Deploy on a DigitalOcean droplet" in README.md.
+#
+# The website's image is built by GitHub (.github/workflows/docker-image.yml) and downloaded
+# from ghcr.io, so a small droplet never has to build it. On your own computer,
+# docker-compose.override.yml adds the build step back, so `docker compose up -d --build`
+# builds from your local code as before. The droplet's .env sets COMPOSE_FILE=docker-compose.yml,
+# which skips that override, so the droplet can't start a build by accident.
 
 # A fixed project name keeps the same database and photo volumes whatever the folder is called.
 name: istilda
@@ -15,15 +21,18 @@ x-logging: &logging
 services:
   # ---------- The website ----------
   web:
-    build: .
-    image: istilda-importers
+    image: ${WEB_IMAGE:-ghcr.io/lewiss-n/istilda:latest}
     container_name: istilda-web
     restart: unless-stopped
     env_file:
       - .env
     environment:
       DATABASE_URL: postgres://istilda:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/istilda
+      DATABASE_POOL_SIZE: "5"
+      # Keeps Node's memory small enough for a 1 GB droplet.
+      NODE_OPTIONS: "--max-old-space-size=320"
       TZ: Africa/Nairobi
+    mem_limit: 512m
     # Reachable only from the server itself (for quick checks with curl). The public reaches
     # the site through Nginx Proxy Manager, at http://istilda-web:3000 on the proxy network.
     ports:
@@ -49,6 +58,20 @@ services:
       POSTGRES_USER: istilda
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
       TZ: Africa/Nairobi
+    # Memory settings sized for a 1 GB droplet; plenty for a shop this size.
+    command:
+      - postgres
+      - -c
+      - shared_buffers=64MB
+      - -c
+      - effective_cache_size=192MB
+      - -c
+      - work_mem=4MB
+      - -c
+      - maintenance_work_mem=32MB
+      - -c
+      - max_connections=30
+    mem_limit: 384m
     volumes:
       - istilda-postgres:/var/lib/postgresql/data
     # Only on the private network: not published, and not visible to the proxy.
@@ -59,7 +82,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 20
-    shm_size: 256mb
+    shm_size: 128mb
     logging: *logging
 
   # ---------- Daily database backups into ./backups ----------
@@ -76,6 +99,7 @@ services:
       TZ: Africa/Nairobi
     volumes:
       - ./backups:/backups
+    mem_limit: 128m
     networks:
       - internal
     depends_on:

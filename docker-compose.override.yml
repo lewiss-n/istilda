@@ -1,0 +1,9 @@
+# Used automatically on your own computer: builds the website from your local code.
+#   docker compose up -d --build
+# The droplet skips this file (its .env sets COMPOSE_FILE=docker-compose.yml) and downloads the
+# image GitHub built instead, because building needs more memory than a 1 GB droplet has.
+services:
+  web:
+    build: .
+    image: istilda-importers:local
+    pull_policy: never # never look for this local-only image online; build it when missing

@@ -48,9 +48,15 @@ BACKUP_KEEP_DAYS=14
 
 # Docker network shared with Nginx Proxy Manager.
 PROXY_NETWORK=proxy
+
+# Server mode: use only docker-compose.yml, i.e. download the image GitHub built and never
+# build on this server (building needs more memory than a small droplet has).
+COMPOSE_FILE=docker-compose.yml
 ENV
 
 echo
 echo "Created .env"
 echo "Your admin password is:  $admin_password"
 echo "Save it in your password manager now. It's also in .env."
+echo
+echo "Next: start the store with  sh scripts/deploy.sh"
