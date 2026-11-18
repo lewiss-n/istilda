@@ -1,0 +1,35 @@
+# Nginx Proxy Manager, for a droplet that doesn't have it yet.
+# If you already run Nginx Proxy Manager, you don't need this file: just make sure it's on the
+# same Docker network as the store (see README.md).
+#
+# Start it with:
+#   docker network create proxy        (once; skip if it already exists)
+#   docker compose up -d               (run in this folder)
+# Admin panel: http://YOUR_DROPLET_IP:81  (change the default login straight away)
+
+name: nginx-proxy-manager
+
+services:
+  npm:
+    image: jc21/nginx-proxy-manager:latest
+    container_name: nginx-proxy-manager
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "81:81" # admin panel: close this port in your firewall once set up, or reach it through an SSH tunnel
+    volumes:
+      - ./data:/data
+      - ./letsencrypt:/etc/letsencrypt
+    networks:
+      - proxy
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+networks:
+  proxy:
+    name: proxy
+    external: true

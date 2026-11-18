@@ -1,3 +1,17 @@
+# Istilda Importers: website + PostgreSQL + daily backups.
+# Visitors reach the website through Nginx Proxy Manager, which handles the domain and HTTPS.
+# See "Deploy on a DigitalOcean droplet" in README.md.
+
+# A fixed project name keeps the same database and photo volumes whatever the folder is called.
+name: istilda
+
+x-logging: &logging
+  # Cap log files so they can't slowly fill the droplet's disk.
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
 services:
   # ---------- The website ----------
   web:
@@ -5,18 +19,25 @@ services:
     image: istilda-importers
     container_name: istilda-web
     restart: unless-stopped
-    ports:
-      - "3000:3000"
     env_file:
       - .env
     environment:
       DATABASE_URL: postgres://istilda:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/istilda
+      TZ: Africa/Nairobi
+    # Reachable only from the server itself (for quick checks with curl). The public reaches
+    # the site through Nginx Proxy Manager, at http://istilda-web:3000 on the proxy network.
+    ports:
+      - "127.0.0.1:${WEB_PORT:-3000}:3000"
     volumes:
-      # Product photos (and the old SQLite file, if you're upgrading) live here.
+      # Product photos live here.
       - istilda-data:/app/data
+    networks:
+      - internal
+      - proxy
     depends_on:
       db:
         condition: service_healthy
+    logging: *logging
 
   # ---------- PostgreSQL database ----------
   db:
@@ -30,13 +51,16 @@ services:
       TZ: Africa/Nairobi
     volumes:
       - istilda-postgres:/var/lib/postgresql/data
-    # Not published to the outside world: only the website can reach it.
+    # Only on the private network: not published, and not visible to the proxy.
+    networks:
+      - internal
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U istilda -d istilda"]
       interval: 5s
       timeout: 5s
       retries: 20
     shm_size: 256mb
+    logging: *logging
 
   # ---------- Daily database backups into ./backups ----------
   backup:
@@ -52,9 +76,12 @@ services:
       TZ: Africa/Nairobi
     volumes:
       - ./backups:/backups
+    networks:
+      - internal
     depends_on:
       db:
         condition: service_healthy
+    logging: *logging
     entrypoint:
       - /bin/sh
       - -c
@@ -70,6 +97,15 @@ services:
           find /backups -name 'istilda-*.dump' -mtime +$${BACKUP_KEEP_DAYS} -delete
           sleep 86400
         done
+
+networks:
+  # Private network for the website, database and backups.
+  internal:
+  # Shared with Nginx Proxy Manager. Create it once with:  docker network create proxy
+  # If your Nginx Proxy Manager is already on another network, put its name in PROXY_NETWORK in .env.
+  proxy:
+    name: ${PROXY_NETWORK:-proxy}
+    external: true
 
 volumes:
   istilda-data:

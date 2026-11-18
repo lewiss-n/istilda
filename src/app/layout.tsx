@@ -7,9 +7,12 @@ import "@fontsource/dm-sans/500.css";
 import "@fontsource/dm-sans/600.css";
 import "@fontsource/dm-sans/700.css";
 import "./globals.css";
+import { siteUrl } from "@/lib/site";
 
 export function generateMetadata(): Metadata {
   return {
+    metadataBase: siteUrl(),
+    openGraph: { siteName: "Istilda Importers", type: "website" },
     title: {
       default: "Istilda Importers | Imported finds, delivered",
       template: "%s | Istilda Importers",

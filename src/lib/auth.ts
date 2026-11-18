@@ -104,9 +104,24 @@ export async function isSecureRequest() {
   return h.get("x-forwarded-proto") === "https";
 }
 
+/**
+ * The visitor's IP address, used for rate limits. Behind Nginx Proxy Manager (or any nginx),
+ * X-Real-IP is set by the proxy itself, so visitors can't fake it. The leftmost entries of
+ * X-Forwarded-For come from the visitor and can be faked, so only the rightmost one is used.
+ * With Cloudflare in front, set CLIENT_IP_HEADER=cf-connecting-ip.
+ */
 export async function clientIp() {
   const h = await headers();
-  return (h.get("x-forwarded-for")?.split(",")[0] || h.get("x-real-ip") || "local").trim();
+  const custom = process.env.CLIENT_IP_HEADER?.trim().toLowerCase();
+  if (custom) {
+    const v = h.get(custom);
+    if (v) return v.split(",")[0].trim();
+  }
+  const real = h.get("x-real-ip");
+  if (real) return real.trim();
+  const xff = h.get("x-forwarded-for");
+  if (xff) return xff.split(",").pop()!.trim();
+  return "local";
 }
 
 // ---- Rate limiting ----

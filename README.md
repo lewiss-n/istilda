@@ -28,7 +28,7 @@ You need Docker with Docker Compose. Docker runs three containers:
 
 | Container | What it does |
 | --- | --- |
-| `istilda-web` | the website, on port 3000 |
+| `istilda-web` | the website, on port 3000 (reachable only from the computer or server it runs on) |
 | `istilda-db` | PostgreSQL 17, the database (not reachable from outside, only by the website) |
 | `istilda-backup` | saves a full database backup to the `backups/` folder every day |
 
@@ -41,19 +41,24 @@ You need Docker with Docker Compose. Docker runs three containers:
    - `WHATSAPP_NUMBER` — your WhatsApp number in international format, e.g. `254712345678` (you can also set this later in Admin › Settings)
    - `POSTGRES_PASSWORD` — a long random password for the database, letters and numbers only. Generate one with `openssl rand -hex 24`. **Set it once and don't change it afterwards**: the database keeps the password it was created with.
 
-2. Build and start:
+2. Create the network the website shares with Nginx Proxy Manager (once per machine; it's harmless if it already exists):
+   ```bash
+   docker network create proxy
+   ```
+
+3. Build and start:
    ```bash
    docker compose up -d --build
    ```
    On first start the website creates all its database tables automatically.
 
-3. Open **http://localhost:3000** for the store and **http://localhost:3000/admin** for the admin.
+4. Open **http://localhost:3000** for the store and **http://localhost:3000/admin** for the admin.
 
 Your data survives restarts, rebuilds and updates:
-- the database is in the Docker volume `istilda-postgres`
-- product photos are in the Docker volume `istilda-data`
+- the database is in the Docker volume `istilda_istilda-postgres`
+- product photos are in the Docker volume `istilda_istilda-data`
 
-**Updating after code changes:** `docker compose up -d --build` (new database changes are applied automatically on start)
+**Updating after code changes:** `docker compose up -d --build`, or `sh scripts/deploy.sh` on a server (it also pulls the latest code from GitHub). New database changes are applied automatically on start.
 
 **Logs:** `docker compose logs -f web`
 
@@ -73,9 +78,9 @@ docker compose exec -T db pg_restore -U istilda -d istilda --clean --if-exists <
 docker compose start web
 ```
 
-**Product photos:** back up the `istilda-data` volume:
+**Product photos:** back up the `istilda_istilda-data` volume:
 ```bash
-docker run --rm -v istilda-data:/data -v "$PWD":/backup busybox tar czf /backup/photos-backup.tgz -C /data uploads
+docker run --rm -v istilda_istilda-data:/data -v "$PWD/backups":/backup busybox tar czf /backup/photos-backup.tgz -C /data uploads
 ```
 
 ### Upgrading from the earlier SQLite version
@@ -87,14 +92,106 @@ If you already ran the earlier version and added products or received orders, mo
    ```bash
    docker compose exec web node scripts/import-sqlite.mjs
    ```
-   It copies products, photos' records, orders, settings (including a changed admin password) and analytics. It only runs while the new database has no products or orders, so it can't overwrite anything. Your photos are already in the `istilda-data` volume and keep working.
+   It copies products, photos' records, orders, settings (including a changed admin password) and analytics. It only runs while the new database has no products or orders, so it can't overwrite anything. Your photos are already in the `istilda_istilda-data` volume and keep working.
 
-### Going live
+### Deploy on a DigitalOcean droplet with Nginx Proxy Manager
 
-- Put the site behind HTTPS (for example with your hosting provider, Caddy or nginx as a reverse proxy) and point your domain at it.
-- Once it's on HTTPS, set `COOKIE_SECURE=true` in `.env` so admin logins only travel over secure connections.
-- Use a long, unique `ADMIN_PASSWORD`. Wrong passwords are limited to 6 tries per 15 minutes per address (tracked in the database).
-- Keep `.env` private: it holds your admin and database passwords.
+This is the production setup. Nginx Proxy Manager handles your domain and the free HTTPS certificate; the store itself is never exposed to the internet directly:
+
+```
+visitors ──https──▶ Nginx Proxy Manager (ports 80, 443)
+                          │  "proxy" Docker network
+                          ▼
+                    istilda-web:3000 ──private network──▶ istilda-db (PostgreSQL)
+                                                          istilda-backup (daily dumps)
+```
+
+**1. Create the droplet.** Ubuntu 24.04 LTS, at least **2 GB RAM** (building the site needs about 1.5 GB). Frankfurt (FRA1) or London (LON1) are the closest regions to Kenya. Add your SSH key. Turning on DigitalOcean's droplet backups is worth it.
+
+On a 1 GB droplet, add swap first or the build will be stopped for lack of memory:
+```bash
+fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
+echo '/swapfile none swap sw 0 0' >> /etc/fstab
+```
+
+**2. Point your domain at it.** At your domain registrar, add `A` records for `@` and `www` with the droplet's IP address.
+
+**3. Firewall.** In DigitalOcean, create a Cloud Firewall for the droplet that allows inbound **22** (SSH), **80** and **443** only. Allow **81** (Nginx Proxy Manager's admin panel) only from your own IP, and only while you need it. Use DigitalOcean's firewall rather than plain `ufw`: Docker bypasses `ufw` rules for ports it publishes. For a second layer on the droplet itself, run `bash scripts/firewall.sh` (or `ADMIN_IP=your.ip bash scripts/firewall.sh` to allow port 81 from your address only): it allows only SSH, 80 and 443, and makes Docker obey the same rules.
+
+**4. Install Docker:**
+```bash
+curl -fsSL https://get.docker.com | sh
+```
+
+**5. Create the shared network and connect Nginx Proxy Manager to it:**
+```bash
+docker network create proxy
+```
+- **Nginx Proxy Manager not installed yet?** Use the ready-made setup in `deploy/nginx-proxy-manager/`: copy that folder to the server, then run `docker compose up -d` inside it. Its admin panel is at `http://YOUR_DROPLET_IP:81`; change the default login straight away.
+- **Already running it?** Connect it: `docker network connect proxy <its container name>` (`docker ps` shows the name). To keep the connection when Nginx Proxy Manager is recreated, also add the network to its own `docker-compose.yml`:
+  ```yaml
+  services:
+    app:            # your Nginx Proxy Manager service
+      networks: [proxy]
+  networks:
+    proxy:
+      external: true
+  ```
+  Alternatively, leave Nginx Proxy Manager as it is and put the name of its existing network (from `docker network ls`) in `PROXY_NETWORK` in `.env`.
+
+**6. Get the code and create the settings file:**
+```bash
+git clone https://github.com/lewiss-n/istilda.git
+cd istilda
+sh scripts/setup-env.sh
+```
+If the repository is private, sign in with your GitHub username and a personal access token as the password. The setup script asks for your domain and WhatsApp number, creates `.env` with strong random passwords, and shows your admin password once. Save it in your password manager.
+
+**7. Start the store:**
+```bash
+docker compose up -d --build
+curl http://127.0.0.1:3000/api/health
+```
+The first build takes a few minutes. The health check should answer `{"ok":true,"database":"up"}`.
+
+**8. Add the proxy host in Nginx Proxy Manager.** Go to **Hosts › Proxy Hosts › Add Proxy Host**:
+
+| Field | Value |
+| --- | --- |
+| Domain Names | `yourdomain.co.ke` and `www.yourdomain.co.ke` |
+| Scheme | `http` |
+| Forward Hostname / IP | `istilda-web` |
+| Forward Port | `3000` |
+| Block Common Exploits | on |
+
+On the **SSL** tab choose **Request a new SSL Certificate**, turn on **Force SSL**, **HTTP/2 Support** and **HSTS Enabled**, agree to the terms and save.
+
+**9. Done.** Open `https://yourdomain.co.ke` and `https://yourdomain.co.ke/admin`.
+
+**Updating later:** push your changes to GitHub, then on the server run:
+```bash
+cd ~/istilda && sh scripts/deploy.sh
+```
+It pulls the latest code, rebuilds, waits until the store reports healthy, and cleans up old images. Your database, photos and backups are kept.
+
+**Keeping backups off the server.** Daily database dumps collect in `~/istilda/backups` on the droplet. If the droplet is lost, so are they, so copy them elsewhere regularly, for example from your own computer:
+```bash
+scp -r root@YOUR_DROPLET_IP:~/istilda/backups ./istilda-backups
+```
+
+**If something's wrong**
+
+| You see | Fix |
+| --- | --- |
+| `network proxy declared as external, but could not be found` | Run `docker network create proxy` once, then start again. |
+| 502 Bad Gateway from Nginx Proxy Manager | Nginx Proxy Manager isn't on the `proxy` network (step 5), or the store isn't running: check `docker compose ps` and `docker compose logs web`. |
+| The build stops with "Killed" or exit code 137 | The droplet ran out of memory. Add swap (step 1) and build again. |
+| Admin login says "Too many wrong attempts" for everyone | You put Cloudflare's proxy in front of the site. Set `CLIENT_IP_HEADER=cf-connecting-ip` in `.env` and restart. |
+
+**Good practice**
+- Use a long, unique admin password. Wrong passwords are limited to 6 tries per 15 minutes per visitor, tracked in the database.
+- Keep `.env` private: it holds your admin and database passwords. The setup script makes it readable by its owner only.
+- Leave `DEMO_MODE` out on the real store.
 
 ### Using a hosted PostgreSQL instead
 
@@ -179,6 +276,10 @@ Production without Docker: `npm run build`, then `npm start`.
 | `WHATSAPP_NUMBER` | No | Your WhatsApp number, e.g. `254712345678`. Admin › Settings overrides it. Without a number, WhatsApp buttons are hidden. |
 | `SESSION_SECRET` | No | Signs admin logins. If empty, a random one is created and stored in the database. |
 | `COOKIE_SECURE` | No | `true` once you're on HTTPS. Left empty, it's detected automatically. |
+| `SITE_URL` | In production | Your store's address, e.g. `https://istilda.co.ke`. Used for links shared on WhatsApp and social media, and for `/sitemap.xml`. |
+| `PROXY_NETWORK` | No | Docker network shared with Nginx Proxy Manager (default `proxy`). |
+| `WEB_PORT` | No | Port the website uses on the server itself, for checks with `curl` (default 3000). Not reachable from the internet. |
+| `CLIENT_IP_HEADER` | No | Only with Cloudflare's proxy in front: `cf-connecting-ip`, so login limits apply per visitor. |
 | `BACKUP_KEEP_DAYS` | No | Days of daily backups to keep (default 14). |
 | `ANALYTICS_RETENTION_DAYS` | No | Analytics older than this are deleted automatically (default 400). |
 | `STORE_TIMEZONE` | No | Time zone for the analytics charts (default `Africa/Nairobi`). |
@@ -205,6 +306,10 @@ src/lib/storage.ts       photo storage: Vercel Blob or local disk
 src/lib/demo.ts          demo mode and its sample data
 vercel.json              Vercel settings (the daily clean-up schedule)
 scripts/import-sqlite.mjs  one-off import from the earlier SQLite version
+scripts/setup-env.sh     creates .env on a new server
+scripts/deploy.sh        updates a server to the latest code
+scripts/firewall.sh      locks the droplet down to SSH, 80 and 443 (Docker included)
+deploy/nginx-proxy-manager/  ready-made Nginx Proxy Manager setup
 src/lib/categories.ts    the category list: edit this to rename or add categories
 src/app/globals.css      brand colours and fonts
 ```
